@@ -1,0 +1,331 @@
+//Clase de conexion
+public class Connection
+{
+    public static SqlConnection conexion;
+    public static string error;
+
+    public static SqlConnection getConexion()
+    {
+        if(conexion != null)
+            return conexion;
+        conexion = new SqlConnection();
+            conexion.ConnectionString = "Data Source=localhost; Initial Catalog=prueba1; Integrated Security=true ";
+        try
+            {
+                conexion.Open();
+                return conexion;
+            }
+            catch(Exception e)
+            {
+                error = e.Message;
+                return null;
+            }
+        
+    }
+    public static void cerrarConexion()
+    {
+        if (conexion != null)
+            conexion.Close();
+    }
+}
+
+
+//Clase Modelos
+    private int id;
+    private string nombres;
+    private string apellidos;
+    private int edad;
+
+    public Persona()
+    {
+     
+    }
+
+    public Persona(string nombres, string apellidos, int edad)
+    {
+        this.nombres = nombres;
+        this.apellidos = apellidos;
+        this.edad = edad;
+    }
+
+    public int Id
+    {
+        get { return id; }
+        set { id = value; }
+    }
+
+//Clase Dao,Datos
+public class Datos
+{
+    public SqlConnection coneccion;
+    public string error;
+
+    public Datos()
+    {
+        this.coneccion = Connection.getConexion();
+    }
+     
+    public bool Agregar (Persona persona)
+    {
+        bool agregar = false;
+        string consulta = "insert_sp";
+        SqlCommand comando = new SqlCommand(consulta);
+        comando.Connection = coneccion;
+        comando.CommandType = CommandType.StoredProcedure; 
+        
+        comando.Parameters.AddWithValue("@nombres",persona.Nombres);
+        comando.Parameters.AddWithValue("@apellidos", persona.Apellidos);
+        comando.Parameters.AddWithValue("@edad", persona.Edad);
+
+        try
+        {
+            comando.ExecuteNonQuery();
+            agregar = true;
+        }
+        catch(SqlException ex)
+        {
+            this.error = ex.Message;
+        }
+        return agregar;
+    }
+
+    public Persona BuscarPersona(string nombre)
+    {
+        string consulta = "buscar_sp";
+        SqlCommand comando = new SqlCommand(consulta);
+        comando.Connection = coneccion;
+        comando.CommandType = CommandType.StoredProcedure;
+
+        comando.Parameters.AddWithValue("@nombres", nombre);
+        SqlDataReader registro = comando.ExecuteReader();
+        if(registro.Read())
+        {
+            Persona persona = new Persona();
+            persona.Nombres = registro.GetString(0);
+            persona.Apellidos = registro.GetString(1);
+            persona.Edad = registro.GetInt32(2);
+            registro.Close();
+            return persona;
+        }
+        else
+        {
+            registro.Close();
+            return null;
+        }
+    }
+   
+    public bool Modificar(Persona persona, string nombre)
+    {
+        bool modificar = false;
+        string consulta = "update_sp";
+        SqlCommand comando = new SqlCommand(consulta);
+        comando.Connection = coneccion;
+        comando.CommandType = CommandType.StoredProcedure;
+
+        comando.Parameters.AddWithValue("@nombres", nombre);
+        comando.Parameters.AddWithValue("@apellidos", persona.Apellidos);
+        comando.Parameters.AddWithValue("@edad", persona.Edad);
+
+        try
+        {
+            comando.ExecuteNonQuery();
+            modificar = true;
+        }
+        catch (SqlException ex)
+        {
+            this.error = ex.Message;
+        }
+        return modificar;
+
+    }
+
+    public bool Eliminar(string nombre,string apellido,int edad)
+    {
+        bool eliminar = false;
+        string consulta = "delete_sp";
+        SqlCommand comando = new SqlCommand(consulta);
+        comando.Connection = coneccion;
+        comando.CommandType = CommandType.StoredProcedure;
+
+        comando.Parameters.AddWithValue("@nombres", nombre);
+        comando.Parameters.AddWithValue("@apellidos", apellido);
+        comando.Parameters.AddWithValue("@edad", edad);
+
+        try
+        {
+            comando.ExecuteNonQuery();
+            eliminar = true;
+        }
+        catch (SqlException ex)
+        {
+            this.error = ex.Message;
+        }
+        return eliminar;
+
+    }
+} 
+
+
+//Clase de la vista
+    Datos datos = new Datos();
+    Persona persona = new Persona();
+
+    protected void btninsert_Click(object sender, EventArgs e)
+    {
+        persona.Nombres = txtnombre.Text;
+        persona.Apellidos = txtapellido.Text;
+        persona.Edad = Convert.ToInt32(txtedad.Text);
+
+        bool agregado = datos.Agregar(persona);
+
+        if(agregado)
+        {
+            txtmensaje.Text = "Agregado...";
+            txtnombre.Text = "";
+            txtapellido.Text = "";
+            txtedad.Text = "";
+        }
+        else
+        {
+            txtmensaje.Text = datos.error;
+        }
+
+    }
+
+    protected void btnConsultar_Click(object sender, EventArgs e)
+    {
+        string registro = txtnombre.Text;
+        Persona persona = datos.BuscarPersona(registro);
+        if(persona != null)
+        {
+            txtnombre.Text = persona.Nombres;
+            txtapellido.Text = persona.Apellidos;
+            txtedad.Text = persona.Edad.ToString();
+            txtmensaje.Text = "usuario...";
+        }
+        else
+        {
+            txtmensaje.Text = "No hay usuarios...";
+        }
+    }
+
+    protected void btnModificar_Click(object sender, EventArgs e)
+    {
+        string nombres = txtnombre.Text;
+        persona.Apellidos = txtapellido.Text;
+        persona.Edad = Convert.ToInt32(txtedad.Text);
+
+        bool modificado = datos.Modificar(persona,nombres);
+
+        if (modificado)
+        {
+            txtmensaje.Text = "Modificado...";
+            txtnombre.Text = "";
+            txtapellido.Text = "";
+            txtedad.Text = "";
+        }
+        else
+        {
+            txtmensaje.Text = datos.error;
+        }
+    }
+
+    protected void btnEliminar_Click(object sender, EventArgs e)
+    {
+        string nombre = txtnombre.Text;
+        string apellido = txtapellido.Text;
+        int edad = Convert.ToInt32(txtedad.Text);
+        bool eliminado = datos.Eliminar(nombre,apellido,edad);
+        if (eliminado)
+        {
+            txtnombre.Text = persona.Nombres;
+            txtapellido.Text = persona.Apellidos;
+            txtedad.Text = persona.Edad.ToString();
+            txtmensaje.Text = "Eliminado...";
+        }
+        else
+        {
+            txtmensaje.Text = "No se realizo...";
+        }
+    }
+
+//Vista grafica
+<body>
+    <div class="pos-f-t">
+  <div class="collapse" id="navbarToggleExternalContent">
+    <div class="bg-dark p-4">
+      <h5 class="text-white h4">Mantenimiento</h5>
+      <span class="text-muted">Toggleable via the navbar brand.</span>
+    </div>
+  </div>
+  <nav class="navbar navbar-dark bg-dark">
+      <div class="container">
+          <h1>Mantenimiento de usuarios</h1>
+      </div>
+  </nav>
+</div>
+    <form id="form1" runat="server">
+        <div class="container">
+            <h1>Mantenimiento</h1>
+            <br />
+            <div class="form-group">
+            <label>Nombre</label> 
+            <div class="col-sm-3">
+            <asp:TextBox Class="form-control" ID="txtnombre" runat="server"></asp:TextBox>
+            </div>
+            </div>
+            <div class="form-group">
+            <label>Apellido</label> 
+            <div class="col-sm-3">
+            <asp:TextBox Class="form-control" ID="txtapellido" runat="server"></asp:TextBox>
+            </div>
+            </div>
+            <div class="form-group">
+            <label>Edad</label> 
+            <div class="col-sm-3">
+            <asp:TextBox Class="form-control" ID="txtedad" runat="server"></asp:TextBox>
+            </div>
+            </div>
+            <div class="form-group">
+            <asp:Label Class="form-control" cssClass="col-sm-4" ID="txtmensaje" runat="server" Text="mensaje"></asp:Label>
+            </div>
+            <div class="form-group">
+            <asp:Button ID="btninsert" class="btn btn-info" runat="server" Text="Insertar" OnClick="btninsert_Click" />
+            <asp:Button ID="btnConsultar" class="btn btn-info" runat="server" OnClick="btnConsultar_Click" Text="Consultar" />
+            <asp:Button ID="btnModificar" class="btn btn-info" runat="server" OnClick="btnModificar_Click" Text="Modificar" />
+            <asp:Button ID="btnEliminar" class="btn btn-info" runat="server" OnClick="btnEliminar_Click" Text="Eliminar" />
+            </div>
+
+        </div>
+    </form>
+</body>
+
+//Consultas, SP
+create procedure insert_sp(@nombres varchar(40),@apellidos varchar(40),@edad int)
+as
+	insert into usuarios(nombres,apellidos,edad) values (@nombres,@apellidos,@edad)
+	go
+
+	exec insert_sp 'Berlin','berlin',50;
+
+create procedure update_sp(@nombres varchar(40),@apellidos varchar(40),@edad int)
+as
+	update usuarios set apellidos=@apellidos, edad=@edad where nombres=@nombres
+	go
+
+	exec update_sp 'Berlin','capital',50;
+
+create procedure delete_sp(@nombres varchar(40),@apellidos varchar(40),@edad int)
+as
+	delete from usuarios where nombres=@nombres and apellidos=@apellidos and edad=@edad
+	go
+
+	exec delete_sp 'Berlin','capital',50;
+
+	drop procedure buscar_sp
+create procedure buscar_sp(@nombres varchar(40))
+as
+	select nombres,apellidos,edad from usuarios where nombres=@nombres
+	go
+
+	exec buscar_sp 'Elias'

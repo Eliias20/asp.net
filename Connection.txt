@@ -1,0 +1,30 @@
+//Clase de conexion
+public class Connection
+{
+    public static SqlConnection conexion;
+    public static string error;
+
+    public static SqlConnection getConexion()
+    {
+        if(conexion != null)
+            return conexion;
+        conexion = new SqlConnection();
+            conexion.ConnectionString = "Data Source=localhost; Initial Catalog=prueba1; Integrated Security=true ";
+        try
+            {
+                conexion.Open();
+                return conexion;
+            }
+            catch(Exception e)
+            {
+                error = e.Message;
+                return null;
+            }
+        
+    }
+    public static void cerrarConexion()
+    {
+        if (conexion != null)
+            conexion.Close();
+    }
+}
