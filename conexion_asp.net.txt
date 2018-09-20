@@ -1,0 +1,534 @@
+//clase de conexion
+ public static SqlConnection conexion;
+    public static string error;
+
+    public static SqlConnection getConexion()
+    {
+        if(conexion != null)
+            return conexion;
+        conexion = new SqlConnection();
+            conexion.ConnectionString = "Data Source=localhost; Initial Catalog=prueba1; Integrated Security=true ";
+        try
+            {
+                conexion.Open();
+                return conexion;
+            }
+            catch(Exception e)
+            {
+                error = e.Message;
+                return null;
+            }
+        
+    }
+    public static void cerrarConexion()
+    {
+        if (conexion != null)
+            conexion.Close();
+    }
+
+
+//clase dao, datos
+ public SqlConnection coneccion;
+    public string error;
+
+    public Datos()
+    {
+        this.coneccion = Connection.getConexion();
+    }
+     
+    public bool Agregar (Persona persona)
+    {
+        bool agregar = false;
+        string consulta = "insert_sp";
+        SqlCommand comando = new SqlCommand(consulta);
+        comando.Connection = coneccion;
+        comando.CommandType = CommandType.StoredProcedure; 
+        
+        comando.Parameters.AddWithValue("@nombres",persona.Nombres);
+        comando.Parameters.AddWithValue("@apellidos", persona.Apellidos);
+        comando.Parameters.AddWithValue("@edad", persona.Edad);
+
+        try
+        {
+            comando.ExecuteNonQuery();
+            agregar = true;
+        }
+        catch(SqlException ex)
+        {
+            this.error = ex.Message;
+        }
+        return agregar;
+    }
+
+    public Persona BuscarPersona(string nombre)
+    {
+        string consulta = "buscar_sp";
+        SqlCommand comando = new SqlCommand(consulta);
+        comando.Connection = coneccion;
+        comando.CommandType = CommandType.StoredProcedure;
+
+        comando.Parameters.AddWithValue("@nombres", nombre);
+        SqlDataReader registro = comando.ExecuteReader();
+        if(registro.Read())
+        {
+            Persona persona = new Persona();
+            persona.Nombres = registro.GetString(0);
+            persona.Apellidos = registro.GetString(1);
+            persona.Edad = registro.GetInt32(2);
+            registro.Close();
+            return persona;
+        }
+        else
+        {
+            registro.Close();
+            return null;
+        }
+    }
+   
+    public bool Modificar(Persona persona, string nombre)
+    {
+        bool modificar = false;
+        string consulta = "update_sp";
+        SqlCommand comando = new SqlCommand(consulta);
+        comando.Connection = coneccion;
+        comando.CommandType = CommandType.StoredProcedure;
+
+        comando.Parameters.AddWithValue("@nombres", nombre);
+        comando.Parameters.AddWithValue("@apellidos", persona.Apellidos);
+        comando.Parameters.AddWithValue("@edad", persona.Edad);
+
+        try
+        {
+            comando.ExecuteNonQuery();
+            modificar = true;
+        }
+        catch (SqlException ex)
+        {
+            this.error = ex.Message;
+        }
+        return modificar;
+
+    }
+
+    public bool Eliminar(string nombre,string apellido,int edad)
+    {
+        bool eliminar = false;
+        string consulta = "delete_sp";
+        SqlCommand comando = new SqlCommand(consulta);
+        comando.Connection = coneccion;
+        comando.CommandType = CommandType.StoredProcedure;
+
+        comando.Parameters.AddWithValue("@nombres", nombre);
+        comando.Parameters.AddWithValue("@apellidos", apellido);
+        comando.Parameters.AddWithValue("@edad", edad);
+
+        try
+        {
+            comando.ExecuteNonQuery();
+            eliminar = true;
+        }
+        catch (SqlException ex)
+        {
+            this.error = ex.Message;
+        }
+        return eliminar;
+
+    }
+
+    public List<Persona> Listar()
+    {
+        List<Persona> listado = new List<Persona>();
+        SqlCommand comando = new SqlCommand();
+        comando.Connection = coneccion;
+        comando.CommandText = "select * from usuarios";
+        SqlDataReader registro = comando.ExecuteReader();
+        while(registro.Read())
+        {
+            Persona persona = new Persona();
+            persona.Id = registro.GetInt32(0);
+            persona.Nombres = registro.GetString(1);
+            persona.Apellidos = registro.GetString(2);
+            persona.Edad = registro.GetInt32(3);
+            listado.Add(persona);
+        }
+        registro.Close();
+        return listado;
+    }
+
+//Clase persona modelos
+
+private int id;
+    private string nombres;
+    private string apellidos;
+    private int edad;
+
+    public Persona()
+    {
+     
+    }
+
+    public Persona(string nombres, string apellidos, int edad)
+    {
+        this.nombres = nombres;
+        this.apellidos = apellidos;
+        this.edad = edad;
+    }
+
+//clase de la vista
+Datos datos = new Datos();
+    Persona persona = new Persona();
+    protected void Page_Load(object sender, EventArgs e)
+    {
+        CargarDatos();
+    }
+
+    protected void btninsert_Click(object sender, EventArgs e)
+    {
+        persona.Nombres = txtnombre.Text;
+        persona.Apellidos = txtapellido.Text;
+        persona.Edad = Convert.ToInt32(txtedad.Text);
+
+        bool agregado = datos.Agregar(persona);
+
+        if(agregado)
+        {
+            txtmensaje.Text = "Agregado...";
+            txtnombre.Text = "";
+            txtapellido.Text = "";
+            txtedad.Text = "";
+            CargarDatos();
+        }
+        else
+        {
+            txtmensaje.Text = datos.error;
+        }
+    }
+
+    protected void btnConsultar_Click(object sender, EventArgs e)
+    {
+        string registro = txtnombre.Text;
+        Persona persona = datos.BuscarPersona(registro);
+        if(persona != null)
+        {
+            txtnombre.Text = persona.Nombres;
+            txtapellido.Text = persona.Apellidos;
+            txtedad.Text = persona.Edad.ToString();
+            txtmensaje.Text = "usuario...";
+        }
+        else
+        {
+            txtmensaje.Text = "No hay usuarios...";
+        }
+    }
+
+    public void CargarDatos()
+        {
+             List<Persona> listado = datos.Listar();
+        if (listado.Count == 0)
+        {
+            txtmensaje.Text = "Usuarios";
+        }
+        else
+        {
+            tablausuarios.DataSource = listado;
+            tablausuarios.DataBind();
+        }      
+        }
+
+    protected void btnModificar_Click(object sender, EventArgs e)
+    {
+        string nombres = txtnombre.Text;
+        persona.Apellidos = txtapellido.Text;
+        persona.Edad = Convert.ToInt32(txtedad.Text);
+
+        bool modificado = datos.Modificar(persona,nombres);
+
+        if (modificado)
+        {
+            txtmensaje.Text = "Modificado...";
+            txtnombre.Text = "";
+            txtapellido.Text = "";
+            txtedad.Text = "";
+            CargarDatos();
+        }
+        else
+        {
+            txtmensaje.Text = datos.error;
+        }
+    }
+
+    protected void btnEliminar_Click(object sender, EventArgs e)
+    {
+        string nombre = txtnombre.Text;
+        string apellido = txtapellido.Text;
+        int edad = Convert.ToInt32(txtedad.Text);
+        bool eliminado = datos.Eliminar(nombre,apellido,edad);
+        if (eliminado)
+        {
+            txtnombre.Text = persona.Nombres;
+            txtapellido.Text = persona.Apellidos;
+            txtedad.Text = persona.Edad.ToString();
+            txtmensaje.Text = "Eliminado...";
+            CargarDatos();
+        }
+        else
+        {
+            txtmensaje.Text = "No se realizo...";
+        }
+    }
+
+
+    protected void Button1_Click(object sender, EventArgs e)
+    {
+
+        string filename = String.Format("Results_{0}_{1}.xls", DateTime.Today.Month.ToString(), DateTime.Today.Year.ToString());
+        if (!string.IsNullOrEmpty(tablausuarios.Page.Title))
+            filename = tablausuarios.Page.Title + ".xls";
+
+        HttpContext.Current.Response.Clear();
+
+        HttpContext.Current.Response.AddHeader("Content-Disposition", "attachment;filename=" + filename);
+
+
+        HttpContext.Current.Response.ContentType = "application/vnd.ms-excel";
+        HttpContext.Current.Response.Charset = "";
+
+        System.IO.StringWriter stringWriter = new System.IO.StringWriter();
+        System.Web.UI.HtmlTextWriter htmlWriter = new HtmlTextWriter(stringWriter);
+
+
+
+        System.Web.UI.HtmlControls.HtmlForm form = new System.Web.UI.HtmlControls.HtmlForm();
+        tablausuarios.Parent.Controls.Add(form);
+        form.Controls.Add(tablausuarios);
+        form.RenderControl(htmlWriter);
+
+        HttpContext.Current.Response.Write("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />");
+        HttpContext.Current.Response.Write(stringWriter.ToString());
+        HttpContext.Current.Response.End();
+       
+
+    }
+
+//vista asp
+<body>
+    <div class="pos-f-t">
+  <div class="collapse" id="navbarToggleExternalContent">
+    <div class="bg-dark p-4">
+      <h5 class="text-white h4">Mantenimiento</h5>
+      <span class="text-muted">Toggleable via the navbar brand.</span>
+    </div>
+  </div>
+  <nav class="navbar navbar-dark bg-dark">
+      <div class="container">
+          <h1>Mantenimiento de usuarios</h1>
+      </div>
+  </nav>
+</div>
+    <form id="form1" runat="server">
+        <div class="container">
+            <h1>Mantenimiento</h1>
+            <br />
+            <div class="form-group">
+            <label>Nombre</label> 
+            <div class="col-sm-3">
+            <asp:TextBox Class="form-control" ID="txtnombre" runat="server"></asp:TextBox>
+            </div>
+            </div>
+            <div class="form-group">
+            <label>Apellido</label> 
+            <div class="col-sm-3">
+            <asp:TextBox Class="form-control" ID="txtapellido" runat="server"></asp:TextBox>
+            </div>
+            </div>
+            <div class="form-group">
+            <label>Edad</label> 
+            <div class="col-sm-3">
+            <asp:TextBox Class="form-control" ID="txtedad" runat="server"></asp:TextBox>
+            </div>
+            </div>
+            <div class="form-group">
+            <asp:Label Class="form-control" cssClass="col-sm-4" ID="txtmensaje" runat="server" Text="mensaje"></asp:Label>
+            </div>
+            <div class="form-group">
+            <asp:Button ID="btninsert" class="btn btn-info" runat="server" Text="Insertar" OnClick="btninsert_Click" />
+            <asp:Button ID="btnConsultar" class="btn btn-info" runat="server" OnClick="btnConsultar_Click" Text="Consultar" />
+            <asp:Button ID="btnModificar" class="btn btn-info" runat="server" OnClick="btnModificar_Click" Text="Modificar" />
+            <asp:Button ID="btnEliminar" class="btn btn-info" runat="server" OnClick="btnEliminar_Click" Text="Eliminar" />
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <asp:Button ID="btngenerar" runat="server" OnClick="Button1_Click" Text="Generar" />
+            </div>
+        </div>
+
+        <div class="container">
+
+
+
+            <br />
+            <asp:GridView ID="tablausuarios" Class="table table-striped table-dark" runat="server">
+            </asp:GridView>
+            <br />
+            <br />
+            <br />
+
+
+
+        </div>
+    </form>
+</body>
+
+//clase correo dao
+ MailMessage correos = new MailMessage();
+        SmtpClient envios = new SmtpClient();
+
+    Datos datos = new Datos();
+
+        public void enviarCorreo(string emisor, string password, string mensaje, string asunto, string destinatario, string ruta)
+        {
+
+            try
+            {
+                correos.To.Clear();
+                correos.Body = "";
+                correos.Subject = "";
+                correos.Body = mensaje;
+                correos.Subject = asunto;
+                correos.IsBodyHtml = true;
+                correos.To.Add(destinatario.Trim());
+
+                if (ruta.Equals("") == false)
+                {
+                    Attachment archivo = new Attachment(ruta);
+                    correos.Attachments.Add(archivo);
+                }
+
+                correos.From = new MailAddress(emisor);
+                envios.Credentials = new NetworkCredential(emisor, password);
+
+                //Datos importantes no modificables para tener acceso a las cuentas
+
+                envios.Host = "smtp.gmail.com";
+                envios.Port = 587;
+                envios.EnableSsl = true;
+
+                envios.Send(correos);
+                //MessageBox.Show("El mensaje fue enviado correctamente");
+            }
+            catch (Exception ex)
+            {
+
+               // MessageBox.Show(ex.Message, "No se envio el correo correctamente", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+//clase vista generar correo
+ Correo c = new Correo();
+    Datos datos = new Datos();
+
+
+    protected void Page_Load(object sender, EventArgs e)
+    {
+
+    }
+
+    protected void btnenviar_Click(object sender, EventArgs e)
+    {
+        
+        c.enviarCorreo(txtde.Text, txtcontraseña.Text, txtmsj.Text, txtasunto.Text, txtpara.Text, txtadjun.Text);
+        txtmensaje.Text = txtadjun.Text;
+    }
+
+//clase vista generar archivo. correo
+
+<body>
+    <form id="form1" runat="server">
+        <div>
+            <asp:Label ID="Label1" runat="server" Text="De:"></asp:Label>
+            <asp:TextBox ID="txtde" runat="server"></asp:TextBox>
+            <br />
+            <br />
+            <asp:Label ID="Label4" runat="server" Text="Contraseña"></asp:Label>
+            <asp:TextBox ID="txtcontraseña" runat="server"></asp:TextBox>
+            <br />
+            <br />
+            <asp:Label ID="Label2" runat="server" Text="Para"></asp:Label>
+            <asp:TextBox ID="txtpara" runat="server"></asp:TextBox>
+            <br />
+            <br />
+            <asp:Label ID="Label3" runat="server" Text="Asunto"></asp:Label>
+            <asp:TextBox ID="txtasunto" runat="server"></asp:TextBox>
+            <br />
+            <br />
+            <asp:Label ID="Label5" runat="server" Text="Adjuntar"></asp:Label>
+            <br />
+            <br />
+            <asp:FileUpload ID="txtadjunto" runat="server" />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <asp:TextBox ID="txtadjun" runat="server"></asp:TextBox>
+&nbsp;&nbsp;
+            <asp:Button ID="btntraer" runat="server" OnClick="btntraer_Click" Text="....." />
+            <br />
+            <br />
+            <asp:TextBox ID="txtmsj" runat="server" Height="50px" Width="332px"></asp:TextBox>
+            <br />
+            <br />
+            <asp:Label ID="txtmensaje" runat="server" Text="Mensaje"></asp:Label>
+            <br />
+            <br />
+            <asp:Button ID="btnenviar" runat="server" OnClick="btnenviar_Click" Text="Enviar" />
+            <br />
+            <br />
+            <br />
+            <br />
+        </div>
+    </form>
+</body>
+
+//base de datos
+update usuarios set apellidos='Garcia', edad=30 where nombres='Elias'
+
+delete from usuarios where nombres='' and apellidos='' and edad=20
+
+insert into usuarios(nombres,apellidos,edad) values ('Santos','Garcia',20)
+
+create procedure insert_sp(@nombres varchar(40),@apellidos varchar(40),@edad int)
+as
+	insert into usuarios(nombres,apellidos,edad) values (@nombres,@apellidos,@edad)
+	go
+
+	exec insert_sp 'Berlin','berlin',50;
+
+create procedure update_sp(@nombres varchar(40),@apellidos varchar(40),@edad int)
+as
+	update usuarios set apellidos=@apellidos, edad=@edad where nombres=@nombres
+	go
+
+	exec update_sp 'Berlin','capital',50;
+
+create procedure delete_sp(@nombres varchar(40),@apellidos varchar(40),@edad int)
+as
+	delete from usuarios where nombres=@nombres and apellidos=@apellidos and edad=@edad
+	go
+
+	exec delete_sp 'Berlin','capital',50;
+
+	drop procedure buscar_sp
+create procedure buscar_sp(@nombres varchar(40))
+as
+	select nombres,apellidos,edad from usuarios where nombres=@nombres
+	go
+
+	exec buscar_sp 'Elias'
+
+create procedure buscar_sp(@nombres varchar(40))
+as
+	select nombres,apellidos,edad from usuarios where nombres=@nombres
+	go
+
+//consultas sql 
+
+
+insert into a usuarios,b pais (nombres.a,apellidos.a,edad.a,nombre_pais.b,cantidad.b) 
+values ('Elias','Santos Garcia',20,'El Salvador',5) 
